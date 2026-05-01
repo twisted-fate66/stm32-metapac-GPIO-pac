@@ -1,0 +1,12 @@
+[default.general]
+chip= "STM32F303RETx"
+
+[default.rtt]
+enabled = false 
+
+[default.gdb]
+enabled = true
+
+[default.reset]
+halt_afterwards = true
+
