@@ -1,62 +1,44 @@
-// #![no_std]
-// #![no_main]
-// use cortex_m::asm::nop;
-// use cortex_m_rt::entry;
-// use panic_halt as _;
-// use stm32_metapac::stm32f3::stm32f303::Peripherals;
-// // use rtt_target::{rprintln, rtt_init_print};
-// #[entry]
-// fn main()-> ! {
-//     let mut x: usize=0;
-//     // rtt_init_print!();
-//     // rprintln!("Hello, world!");
-//     loop {
-//         // rprintln!("echo...");
-//         x+=1;
-//         for _ in 0..x{
-//             nop();
-//         }
-//     }
-// }
 
 #![no_std]
 #![no_main]
 
 use cortex_m_rt::entry;
-use cortex_m::asm;
 use panic_halt as _;
 use stm32_metapac as pac;
-
-use pac::gpio::vals::{Moder, Odr};
-
+use pac::gpio::vals::{Moder, Idr};
+use pac::gpio::vals::Pupdr;
 #[entry]
 fn main() -> ! {
     // Enable GPIOA clock
     pac::RCC.ahbenr().modify(|w| w.set_gpioaen(true));
-    // pac::RCC.ahbenr().modify(|w| w.set_gpiocen(true));
+
+    // Enable GPIOC clock
+    pac::RCC.ahbenr().modify(|w| w.set_gpiocen(true));
+
     // Set PA5 as output
     pac::GPIOA.moder().modify(|w| w.set_moder(5, Moder::OUTPUT));
 
+    // Set PC13 as input
+    pac::GPIOC.moder().modify(|w| w.set_moder(13, Moder::INPUT));
+
+    // enable pull up for PC13
+    pac::GPIOC.pupdr().modify(|w| w.set_pupdr(13, Pupdr::PULL_UP));
+
+    
+    let mut led_on=false;
+    let mut prev_button_state=Idr::HIGH;
+
     loop {
-        // Read current state
-        // let state = pac::GPIOA.odr().read().odr(5);
+        let current_button_state= pac::GPIOC.idr().read().idr(13);
+        if prev_button_state==Idr::HIGH && current_button_state==Idr::LOW{
+            led_on=!led_on;
+        }
+        prev_button_state=current_button_state;
 
-        // Toggle
-        // let new_state = match state {
-        //     Odr::LOW => Odr::HIGH,
-        //     Odr::HIGH => Odr::LOW,
-        // };
-
-         pac::GPIOA.odr().modify(|w| w.set_odr(5, Odr::LOW));
-         asm::delay(8_000_000);
-         pac::GPIOA.odr().modify(|w| w.set_odr(5, Odr::HIGH));
-         asm::delay(8_000_000);
-        // delay();
-    }
-}
-
-fn delay() {
-    for _ in 0..8_000_000 {
-        asm::nop();
+        if led_on{
+            pac::GPIOA.bsrr().write(|w|w.set_bs(5, true));
+        }else{
+            pac::GPIOA.bsrr().write(|w| w.set_br(5, true));
+        }
     }
 }
